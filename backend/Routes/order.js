@@ -510,5 +510,53 @@ router.post('/place', async (req, res) => {
       res.status(500).json({ error: 'Internal Server Error' });
     }
   });
+
+  router.get('/top-sale-products', async (req, res) => {
+    try {
+      // Aggregate orders to count the sales of each product
+      const topSaleProducts = await Order.aggregate([
+        {
+          $group: {
+            _id: '$productid',
+            count: { $sum: 1 } // Count the number of orders for each product
+          }
+        },
+        {
+          $match: {
+            count: { $gte: 2 } // Filter products sold 5 or more times
+          }
+        },
+        {
+          $lookup: {
+            from: 'products', // Collection name of products
+            localField: '_id',
+            foreignField: '_id',
+            as: 'product' // Attach product details to each sale
+          }
+        },
+        {
+          $unwind: '$product'
+        },
+        {
+          $project: {
+            _id: '$product._id',
+            image: '$product.image',
+            productName: '$product.productName',
+            price: '$product.price',
+            productType: '$product.productType',
+            category: '$product.category',
+            brand: '$product.brand',
+            description: '$product.description',
+            quantitySold: '$count' 
+          }
+        }
+      ]);
+  
+      res.json(topSaleProducts);
+    } catch (error) {
+      console.error('Error fetching top sale products:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
   
 module.exports = router;
